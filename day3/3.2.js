@@ -1,75 +1,40 @@
-const visitedLocations = {};
-const intersections = [];
-
 const getLocationFromCoordinates = coords => {
 	return coords[0] + "x" + coords[1];
 };
 
-const getVisitedBlocks = (wireId, startLocation, instruction, steps) => {
-	const direction = instruction.substring(0, 1);
-	const length = parseInt(instruction.substring(1));
-	let adder = [0, 0];
-	switch (direction) {
-		case "L":
-			adder = [-1, 0];
-			break;
-		case "R":
-			adder = [1, 0];
-			break;
-		case "U":
-			adder = [0, -1];
-			break;
-		case "D":
-			adder = [0, 1];
-			break;
-		default:
-	}
-	let currentLocation = startLocation;
-	for (let i = 1; i <= length; i++) {
-		currentLocation[0] += adder[0];
-		currentLocation[1] += adder[1];
-
-		console.log(steps + i);
-
-		if (wireId > 0) {
-			if (visitedLocations[getLocationFromCoordinates(currentLocation)]) {
-				console.log(
-					getLocationFromCoordinates(currentLocation),
-					visitedLocations[getLocationFromCoordinates(currentLocation)],
-					currentLocation,
-					i + steps
-				);
-				intersections.push(
-					i +
-						steps +
-						visitedLocations[getLocationFromCoordinates(currentLocation)]
-				);
-			}
-		} else {
-			if (!visitedLocations[getLocationFromCoordinates(currentLocation)]) {
-				visitedLocations[getLocationFromCoordinates(currentLocation)] =
-					steps + i;
-			}
-		}
-	}
-
-	return { location: currentLocation, steps: length };
-};
-
-const getBlocksFromInstructions = (wireId, instructionList) => {
+const getPath = instructionList => {
+	let path = {};
 	let currentLocation = [0, 0];
 	let steps = 0;
 	for (let i in instructionList) {
-		const res = getVisitedBlocks(
-			wireId,
-			currentLocation,
-			instructionList[i],
-			steps
-		);
-
-		currentLocation = [...res.location];
-		steps += res.steps;
+		const instruction = instructionList[i];
+		const direction = instruction.substring(0, 1);
+		const stepLength = parseInt(instruction.substring(1));
+		let adder = [0, 0];
+		switch (direction) {
+			case "L":
+				adder = [-1, 0];
+				break;
+			case "R":
+				adder = [1, 0];
+				break;
+			case "U":
+				adder = [0, -1];
+				break;
+			case "D":
+				adder = [0, 1];
+				break;
+			default:
+		}
+		for (let n = 1; n <= stepLength; n++) {
+			steps++;
+			currentLocation[0] += adder[0];
+			currentLocation[1] += adder[1];
+			if (!path[getLocationFromCoordinates(currentLocation)])
+				path[getLocationFromCoordinates(currentLocation)] = steps;
+		}
 	}
+	return path;
 };
 
 const parseInstructions = instructions => {
@@ -81,26 +46,19 @@ const instructions = [
 	"R1002,U407,R530,D268,R516,U937,L74,U838,R784,D684,L912,U746,R189,U192,R868,D345,L972,D492,R942,U631,L559,U634,L80,U513,L746,D997,L348,D160,L655,U949,R717,U396,R549,D167,R591,U469,L22,U977,L167,D856,L320,D920,L396,U490,L895,U180,R661,D828,R864,U189,R307,U402,R409,U445,L101,D418,R812,U419,R319,U75,L813,D46,L491,U39,R737,U11,R177,U311,L278,U254,R475,U166,L515,D105,L694,D437,L298,U169,L613,D234,L999,U380,L711,D758,R932,D27,L951,D529,L935,D189,R816,D176,R98,D320,R965,D333,L367,U622,R18,U83,R275,D205,L960,U177,R750,D466,R442,U797,R355,D717,L569,D578,R384,U863,R541,U405,R527,D658,L514,U168,L64,D918,R947,D11,L189,D875,R599,U201,L165,U772,L679,U566,L195,U660,R896,D622,R678,U390,L984,D900,R889,D714,R557,U848,L176,U541,R518,D699,L904,D23,L55,D886,L206,D621,L48,D197,R502,D259,L779,D72,L183,U747,L424,U452,L603,U561,L430,D942,R515,D378,R962,U508,R230,D650,R804,D453,R899,D813,R484,U798,R456,D231,L316,U117,R630,D436,L985,D283,L393,D370,R158,U957,L914,D455,L875,U536,R889,U400,R347,U712,R487,D455,R428,U590,R127,D132,L202,U377,R138,U654,L760,D46,R213,D225,L817,U455,L612,U543,L525,U979,R591,D940,R446,U786,R750,U244,R325,U928,L44,U551,L955,U221,L986,U516,L916,D242,L280,D71,R80,U849,L271,U626,R737,D646,R82,U120,R646,U569,R463,D94,R570,U456,L548,D687,R221,D759,L606,D818,L859,U218,R682,U299,R818,D966,R407,U605,L859,D378,L53,D722,L216,D221,R639,U485,L865,D620,R99,D988,R944,D323,R540,U372,L470,U106,L804,D92,L177,U518,R277,U670,R451,D194,L695,D502,L601,U596,R374,U682,L19,D54,L156"
 ];
 
-/*
-const instructions = [
-	"R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51",
-	"U98,R91,D20,R16,D67,R40,U7,R15,U6,R7"
-];
-*/
-/*
-const instructions = [
-	"R75,D30,R83,U83,L12,D49,R71,U7,L72",
-	"U62,R66,U55,R34,D71,R55,D58,R83"
-];
-*/
-//const instructions = ["R8,U5,L5,D3", "U7,R6,D4,L4"];
-
-for (let i in instructions) {
-	const instruction = instructions[i];
-	console.log("adding blocks");
-	getBlocksFromInstructions(i, parseInstructions(instruction));
+//becuase my intersect function was so slow, this was shamelessly stolen from SO
+function intersect(o1, o2) {
+	const [k1, k2] = [Object.keys(o1), Object.keys(o2)];
+	const [first, next] = k1.length > k2.length ? [k2, o1] : [k1, o2];
+	return first.filter(k => k in next);
 }
 
-intersections.sort();
-console.log("intersections");
-console.log(intersections);
+const pathA = getPath(parseInstructions(instructions[0]));
+const pathB = getPath(parseInstructions(instructions[1]));
+
+let intersections = intersect(pathA, pathB);
+let pathLengths = intersections.map(
+	intersection => pathA[intersection] + pathB[intersection]
+);
+pathLengths.sort((a, b) => a - b);
+console.log(pathLengths);
