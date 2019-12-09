@@ -46,7 +46,7 @@ const outputInstruction = (program, position, modes) => {
 				? position + 1
 				: program[position + 1]
 			: program[position + 1];
-	console.log("OUT", program[readAddress1]);
+	//console.log("OUT [", readAddress1, "]", program[readAddress1]);
 	return program[readAddress1];
 };
 
@@ -64,6 +64,7 @@ const jumpIfTrueInstruction = (program, position, modes) => {
 				: program[position + 1]
 			: program[position + 1];
 	if (program[readAddress1] != 0) {
+		//console.log("jumping to", readAddress2);
 		return program[readAddress2];
 	}
 	return 0;
@@ -145,7 +146,7 @@ const processCode = (program, position, inputs, outputs) => {
 	const instructionCode = parseInt(instructionParts[0]);
 	const modes = instructionParts.splice(2);
 	let target = 0;
-	console.log("instruction", instruction, "modes", modes);
+	//console.log("instruction", instruction, "modes", modes, "at", position);
 
 	switch (instructionCode) {
 		case 1:
@@ -157,17 +158,22 @@ const processCode = (program, position, inputs, outputs) => {
 			pointerMove = 4;
 			break;
 		case 3:
-			console.log("READING FROM INPUTS ", inputs);
+			//console.log("READING FROM INPUTS ", inputs);
 			newProgram = inputInstruction(program, position, inputs);
 			if (inputs.length > 1) inputs = inputs.slice(1);
 			pointerMove = 2;
 			break;
 		case 4:
 			newProgram = program;
-			console.log("ADDING OUTPUT ");
 			outputs.push(outputInstruction(program, position, modes));
 			pointerMove = 2;
-			break;
+
+			return {
+				program: newProgram,
+				move: pointerMove,
+				inputs: inputs,
+				outputs: outputs
+			};
 		case 5:
 			newProgram = program;
 			target = jumpIfTrueInstruction(program, position, modes);
@@ -186,6 +192,8 @@ const processCode = (program, position, inputs, outputs) => {
 			newProgram = equalsInstruction(program, position, modes);
 			pointerMove = 4;
 			break;
+		case 9:
+			newProgram = null;
 	}
 
 	return {
@@ -197,11 +205,22 @@ const processCode = (program, position, inputs, outputs) => {
 };
 
 const tick = (program, position, inputs, outputs) => {
-	console.log(JSON.stringify(program), outputs);
+	//console.log(JSON.stringify(program), outputs);
 	const res = processCode(program, position, inputs, outputs);
 
+	if (res.outputs.length > 0) {
+		return {
+			program: res.program,
+			position: position + res.move,
+			outputs: res.outputs
+		};
+	}
 	if (!res.program) {
-		return outputs;
+		return {
+			program: program,
+			position: -1,
+			outputs: outputs
+		};
 	}
 
 	return tick(res.program, position + res.move, res.inputs, res.outputs);
@@ -209,12 +228,18 @@ const tick = (program, position, inputs, outputs) => {
 
 let startProgram = [];
 
-const runComputer = (phaseSetting, input) => {
-	console.log(phaseSetting, input);
-	const program = [...startProgram];
-	const endProgram = tick(program, 0, [phaseSetting, input], []);
-	console.log("computer done", endProgram);
-	return endProgram[endProgram.length - 1];
+const runComputer = computer => {
+	//console.log(computer);
+	const inputs = computer.isPhaseSet
+		? [computer.input]
+		: [computer.phaseSetting, computer.input];
+	const endProgram = tick(computer.program, computer.pointer, inputs, []);
+	computer.program = endProgram.program;
+	computer.pointer = endProgram.position;
+	computer.isPhaseSet = true;
+	if (endProgram.outputs.length > 0) computer.output = endProgram.outputs[0];
+	//console.log("computer done", computer);
+	return computer;
 };
 
 //shamelessly stolen function from SO
@@ -242,28 +267,36 @@ const generatePhaseCombinations = () => {
 	return permutator([5, 6, 7, 8, 9]);
 };
 
+const getAmplifiers = () => {
+	let amps = [];
+	for (let i = 0; i < 5; i++) {
+		const program = [...startProgram];
+		amps.push({ program: program, input: 0, output: 0, pointer: 0 });
+	}
+	return amps;
+};
+
 const tryCombination = combination => {
 	let lastOutput = 0;
+	const amplifiers = getAmplifiers();
 
-	for (let i = 0; i < 5; i++) {
-		console.log("boot computer", i % 5, combination[i % 5], lastOutput);
-		let phaseSetting = combination[i % 5];
-		lastOutput = runComputer(phaseSetting, lastOutput);
+	for (let q = 0; q < 999; q++) {
+		for (let i = 0; i < 5; i++) {
+			console.log("boot computer", i, combination[i], lastOutput);
+			amplifiers[i].phaseSetting = combination[i];
+			amplifiers[i].input = lastOutput;
+			amplifiers[i] = runComputer(amplifiers[i]);
+			lastOutput = amplifiers[i].output;
+			if (amplifiers[i].pointer < 0) {
+				console.log(amplifiers[i].input);
+				return amplifiers[i].input;
+			}
+		}
 	}
 
 	return lastOutput;
 };
 
-var fs = require("fs");
-fs.readFile("input.txt", "utf8", function(err, data) {
-	console.log("data", data);
-	startProgram = JSON.parse("[" + data + "]");
-
-	const result = tryCombination([9, 8, 7, 6, 5]);
-	console.log(result);
-});
-
-/*
 var fs = require("fs");
 fs.readFile("input.txt", "utf8", function(err, data) {
 	console.log("data", data);
@@ -285,4 +318,3 @@ fs.readFile("input.txt", "utf8", function(err, data) {
 	console.log(bestCombination);
 	console.log(highestResult);
 });
-*/
